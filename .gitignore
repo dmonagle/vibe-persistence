@@ -1,0 +1,6 @@
+# .gitignore
+dub.userprefs
+.dub
+__test__library__
+*.a
+__test__vibe-persistence__
