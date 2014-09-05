@@ -60,24 +60,24 @@ class MongoAdapter {
 		collection.ensureIndex(fieldOrders, flags);
 	}
 
-	ModelType find(ModelType, string key = "_id", IdType)(IdType id) {
+	ModelType findModel(ModelType, string key = "_id", IdType)(IdType id) {
 		import std.conv;
 
-		auto models = find!(ModelType, key, IdType)([id]);
+		auto models = findModel!(ModelType, key, IdType)([id]);
 		if (models.length) return models[0];
 		static if(is(ModelType == class)) return null;
 		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ ModelType.containerName);
 	}
 
-	ModelType[] find(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
+	ModelType[] findModel(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
 		import std.array;
 		import std.algorithm;
-
+		
 		ModelType[] models;
 		
 		auto collection = getCollection(ModelType.containerName);
 		auto result = collection.find([key: ["$in": ids]]);
-
+		
 		while (!result.empty) {
 			ModelType model;
 			auto bsonModel = result.front;
@@ -85,6 +85,31 @@ class MongoAdapter {
 			models ~= model;
 			result.popFront;
 		}
+		return models;
+	}
+	
+	Bson find(ModelType, string key = "_id", IdType)(IdType id) {
+		import std.conv;
+		
+		auto models = find!(ModelType, key, IdType)([id]);
+		if (models.length) return models[0];
+		return Bson(null);
+	}
+	
+	Bson[] find(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
+		import std.array;
+		import std.algorithm;
+		
+		Bson[] models;
+		
+		auto collection = getCollection(ModelType.containerName);
+		auto result = collection.find([key: ["$in": ids]]);
+		
+		while (!result.empty) {
+			models ~= result.front;
+			result.popFront;
+		}
+
 		return models;
 	}
 	
@@ -171,7 +196,7 @@ version(unittest) {
 		mongodb.save(u);
 		assert(!u.isNew);
 		
-		auto loadedUser = mongodb.find!PersistenceTestUser(u.id);
+		auto loadedUser = mongodb.findModel!PersistenceTestUser(u.id);
 		assert(loadedUser.firstName == "David");
 	}
 	
@@ -191,7 +216,7 @@ version(unittest) {
 		mongodb.save(p);
 		assert(!p.isNew);
 		
-		auto loadedUser = mongodb.find!PersistenceTestPerson(p.id);
+		auto loadedUser = mongodb.findModel!PersistenceTestPerson(p.id);
 		assert(loadedUser.name == "David");
 		
 		assertThrown!NoModelForIdException(mongodb.find!PersistenceTestPerson("000000000000000000000000"));
