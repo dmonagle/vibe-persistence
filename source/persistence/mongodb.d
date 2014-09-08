@@ -15,8 +15,8 @@ class MongoAdapter {
 		string _environment;
 		string _database;
 		bool _connected;
-		
-		ModelCache _cache;
+
+		CacheContainer!Bson _cache;
 	}
 	@property bool connected() { return _connected; }
 	

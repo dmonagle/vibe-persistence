@@ -1,35 +1,34 @@
 ﻿module persistence.cache;
 
-import vibe.data.bson;
 import std.datetime;
 
-struct CachedModel {
+struct CachedData(T) {
 	SysTime timestamp;
-	Bson data;
+	T data;
 }
 
-struct ModelCache {
+struct CacheContainer(T) {
 	int maxAge = 4;
 	int maxSize = 100;
 
-	CachedModel[string] _cacheMap;
+	CachedData!T[string] _cacheMap;
 
-	void addToCache(string id, const ref Bson data) {
-		_cacheMap[id] = CachedModel(Clock.currTime(), data);
+	void addToCache(string id, T data) {
+		_cacheMap[id] = CachedData!T(Clock.currTime(), data);
 	}
 
-	Bson retrieveFromCache(string id) {
+	T retrieveFromCache(string id) {
 		if (id in _cacheMap) {
 			auto cachedModel = _cacheMap[id];
 			auto age = Clock.currTime() - cachedModel.timestamp;
 			if (age > dur!"seconds"(maxAge)) {
 				_cacheMap.remove(id);
-				return Bson(null);
+				return T(null);
 			}
 
 			return cachedModel.data;
 		}
-		return Bson(null);
+		return T(null);
 	}
 
 	@property size_t length() {
@@ -39,18 +38,46 @@ struct ModelCache {
 
 unittest {
 	import core.thread;
-
-	auto testData1 = serializeToBson(["name": "Bruce"]);
-
+	import vibe.data.bson;
 	
-	ModelCache ca;
+	auto testData1 = serializeToBson(["name": "Bruce"]);
+	
+	
+	CacheContainer!Bson ca;
 	ca.maxAge = 1;
 	ca.maxSize = 100;
-
+	
 	assert(ca.length == 0);
 	ca.addToCache("123", testData1);
 	assert(ca.length == 1);
+	
+	auto result = ca.retrieveFromCache("123");
+	assert(result.name.get!string == "Bruce");
+	
+	auto noResult = ca.retrieveFromCache("1234");
+	assert(noResult.isNull);
+	
+	Thread.sleep( dur!("seconds")(1) );
+	auto result2 = ca.retrieveFromCache("123");
+	assert(result2.isNull);
+	assert(ca.length == 0);
+}
 
+unittest {
+	import core.thread;
+	import vibe.data.json;
+	
+	auto testData1 = serializeToJson(["name": "Bruce"]);
+	
+	
+	CacheContainer!Json ca;
+	ca.maxAge = 1;
+	ca.maxSize = 100;
+	
+	assert(ca.length == 0);
+	ca.addToCache("123", testData1);
+	assert(ca.length == 1);
+	
 	auto result = ca.retrieveFromCache("123");
 	assert(result.name.get!string == "Bruce");
 	
