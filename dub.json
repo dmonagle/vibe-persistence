@@ -5,6 +5,7 @@
 	"authors": ["David Monagle"],
 	"dependencies": {
 		"vibe-d": "~master",
+		"elasticsearch-d": "~master"
 	},
 	"license": "MIT",
 	"configurations": [

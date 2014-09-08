@@ -7,6 +7,7 @@ public import vibe.db.mongo.mongo;
 public import vibe.data.bson;
 public import vibe.core.log;
 public import std.datetime;
+import persistence.base;
 
 class MongoAdapter {
 	private {
@@ -135,11 +136,6 @@ class MongoAdapter {
 		M.mongoAdapter = this;
 		M.containerName = containerName;
 	}
-}
-
-interface ModelInterface {
-	@property string idString();
-	void setId(string id);
 }
 
 mixin template MongoModel(ModelType, string cName = "") {
