@@ -116,6 +116,7 @@ class MongoAdapter {
 	
 	bool save(M)(ref M model) {
 		auto collection = getCollection(M.containerName);
+
 		Bson bsonModel;
 
 		if(model.isNew) {
@@ -124,7 +125,7 @@ class MongoAdapter {
 			collection.insert(model);
 		} else {
 			bsonModel = serializeToBson(model);
-			collection.update(["_id": model.id], bsonModel);
+			collection.update(["_id": model.id], bsonModel, UpdateFlags.Upsert);
 		}
 		
 		_cache.addToCache(bsonModel._id.toString(), bsonModel);
