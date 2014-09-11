@@ -7,14 +7,12 @@ public import vibe.db.mongo.mongo;
 public import vibe.data.bson;
 public import vibe.core.log;
 public import std.datetime;
-import persistence.base;
+public import persistence.base;
 
-class MongoAdapter {
+class MongoAdapter : PersistenceAdapter {
 	private {
 		MongoClient _client;
 		string _url;
-		string _environment;
-		string _database;
 		bool _connected;
 
 		CacheContainer!Bson _cache;
@@ -30,13 +28,12 @@ class MongoAdapter {
 	}
 
 	@property MongoDatabase database() {
-		return client.getDatabase(fullDatabaseName);
+		return client.getDatabase(fullName);
 	}
 
-	this(string url, string database, string environment = "test") {
+	this(string url, string applicationName, string environment = "test") {
+		super(applicationName, environment);
 		_url = url;
-		_database = database;
-		_environment = environment;
 	}
 
 	Bson dropCollection(string collection) {
@@ -48,17 +45,17 @@ class MongoAdapter {
 	MongoCollection getCollection(string collection) {
 		return client.getCollection(collectionPath(collection));
 	}
+
+	MongoCollection getCollection(ModelType)() {
+		return getCollection(modelMeta!ModelType.containerName);
+	}
+
 	string collectionPath(string name) {
-		return fullDatabaseName ~ "." ~ name;
+		return fullName ~ "." ~ name;
 	}
 	
-	@property string fullDatabaseName() {
-		return _database ~ "_" ~ _environment;
-	}
-	
-	void ensureIndex(string collectionName, int[string] fieldOrders, IndexFlags flags = cast(IndexFlags)0) {
-		auto collection = getCollection(collectionName);
-		collection.ensureIndex(fieldOrders, flags);
+	void ensureIndex(M)(int[string] fieldOrders, IndexFlags flags = cast(IndexFlags)0) {
+		getCollection!M.ensureIndex(fieldOrders, flags);
 	}
 
 	ModelType findModel(ModelType, string key = "_id", IdType)(IdType id) {
@@ -67,7 +64,25 @@ class MongoAdapter {
 		auto models = findModel!(ModelType, key, IdType)([id]);
 		if (models.length) return models[0];
 		static if(is(ModelType == class)) return null;
-		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ ModelType.containerName);
+		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ modelMeta!ModelType.containerName);
+	}
+
+	void findModel(ModelType)(Json options, scope void delegate(ModelType model) pred = null) {
+		import std.array;
+		import std.algorithm;
+
+		auto collection = getCollection!ModelType;
+		options._type = modelMeta!ModelType.type;
+		
+		auto result = collection.find(options);
+		
+		while (!result.empty) {
+			ModelType model;
+			auto bsonModel = result.front;
+			deserializeBson(model, bsonModel);
+			if (pred) pred(model);
+			result.popFront;
+		}
 	}
 
 	ModelType[] findModel(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
@@ -75,8 +90,9 @@ class MongoAdapter {
 		import std.algorithm;
 		
 		ModelType[] models;
-		
-		auto collection = getCollection(ModelType.containerName);
+
+		auto collection = getCollection!ModelType;
+
 		auto result = collection.find([key: ["$in": ids]]);
 		
 		while (!result.empty) {
@@ -103,7 +119,7 @@ class MongoAdapter {
 		
 		Bson[] models;
 		
-		auto collection = getCollection(ModelType.containerName);
+		auto collection = getCollection(modelMeta!ModelType.containerName);
 		auto result = collection.find([key: ["$in": ids]]);
 		
 		while (!result.empty) {
@@ -115,7 +131,7 @@ class MongoAdapter {
 	}
 	
 	bool save(M)(ref M model) {
-		auto collection = getCollection(M.containerName);
+		auto collection = getCollection(modelMeta!M.containerName);
 
 		Bson bsonModel;
 
@@ -142,34 +158,36 @@ class MongoAdapter {
 				alias member = Tuple!(__traits(getMember, M, memberName));
 				alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
 				static if (embeddedUDA.found) {
-					__traits(getMember, model, memberName).ensureId();
+					auto embeddedModel = __traits(getMember, model, memberName);
+					if (embeddedModel) embeddedModel.ensureId();
 				}
 			}
 		}
 	}
-
-	void registerModel(M, string containerName)(bool cached = true) {
-		M.mongoAdapter = this;
-		M.containerName = containerName;
-	}
 }
 
 mixin template MongoModel(ModelType, string cName = "") {
-	package {
-		static string _containerName = cName;
-		static MongoAdapter _mongoAdapter;
+	private {
+		static PersistenceAdapter _persistenceAdapter;
 	}
 
-	@ignore @property static MongoAdapter mongoAdapter() { return _mongoAdapter; }
-	@ignore @property static void mongoAdapter(MongoAdapter a) { _mongoAdapter = a; }
-	@ignore @property static MongoCollection collection() { return mongoAdapter.getCollection(containerName); }
-	@ignore static @property string containerName() { return _containerName; }
-	@optional static @property void containerName(string containerName) { _containerName = containerName; }
 	@optional BsonObjectID _id;
+
+	// Dummy setter so that _type will be serialized
+	@optional @property void _type(string value) {}
+	@property string _type() { return ModelType.stringof; }
 
 	@ignore @property BsonObjectID id() { return _id; } 
 	@optional @property void id(BsonObjectID id) { _id = id; } 
 	@ignore @property bool isNew() { return !id.valid; }
+
+	@ignore static @property ref PersistenceAdapter persistenceAdapter() { 
+		return _persistenceAdapter; 
+	}
+	@ignore static @property MongoAdapter mongoAdapter() { 
+		assert(_persistenceAdapter, "persistenceAdapter not set on " ~ ModelType.stringof);
+		return cast(MongoAdapter)persistenceAdapter; 
+	}
 
 	@property SysTime createdAt() {
 		return id.timeStamp;
@@ -179,10 +197,6 @@ mixin template MongoModel(ModelType, string cName = "") {
 		if (!id.valid) {
 			id = BsonObjectID.generate();
 		}
-	}
-
-	static void ensureIndex(int[string] fieldOrders, IndexFlags flags = cast(IndexFlags)0) {
-		mongoAdapter.ensureIndex(containerName, fieldOrders, flags);
 	}
 }
 
@@ -203,9 +217,9 @@ version(unittest) {
 	
 	unittest {
 		auto mongodb = new MongoAdapter("mongodb://localhost", "testdb", "development");
-		assert(mongodb.fullDatabaseName == "testdb_development");
+		assert(mongodb.fullName == "testdb_development");
 		assert(mongodb.collectionPath("test") == "testdb_development.test");
-		mongodb.registerModel!(PersistenceTestUser, "users");
+		mongodb.registerModel!PersistenceTestUser(ModelMeta("users"));
 		
 		PersistenceTestUser u;
 		u.firstName = "David";
@@ -222,9 +236,9 @@ version(unittest) {
 		import std.exception;
 		
 		auto mongodb = new MongoAdapter("mongodb://localhost", "testdb", "development");
-		mongodb.registerModel!(PersistenceTestPerson, "people");
+		mongodb.registerModel!PersistenceTestPerson(ModelMeta("people"));
 		
-		assert(mongodb.fullDatabaseName == "testdb_development");
+		assert(mongodb.fullName == "testdb_development");
 		assert(mongodb.collectionPath("test") == "testdb_development.test");
 		
 		auto p = new PersistenceTestPerson;
