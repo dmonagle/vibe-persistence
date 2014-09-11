@@ -39,10 +39,10 @@ class MongoAdapter {
 		_environment = environment;
 	}
 
-	void dropCollection(string collection) {
+	Bson dropCollection(string collection) {
 		auto command = Bson.emptyObject;
 		command.drop = collection;
-		database.runCommand(command);
+		return database.runCommand(command);
 	}
 
 	MongoCollection getCollection(string collection) {
