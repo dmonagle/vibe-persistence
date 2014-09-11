@@ -3,6 +3,25 @@
 interface ModelInterface {
 	@property string idString();
 	void setId(string id);
+	void ensureId();
+
+	bool beforeCreate();
+	bool beforeUpdate();
+	bool beforeSave();
+	void afterSave();
+	void afterCreate();
+}
+
+class PersistenceModel : ModelInterface {
+	bool beforeCreate() { return true; }
+	bool beforeUpdate() { return true; }
+	bool beforeSave() { return true; }
+	void afterSave() {}
+	void afterCreate() {}
+
+	abstract @property string idString();
+	abstract void setId(string id);
+	abstract void ensureId();
 }
 
 struct ModelMeta {
@@ -13,6 +32,11 @@ struct ModelMeta {
 
 	PersistenceAdapter adapter;
 }
+
+struct EmbeddedAttribute {
+}
+
+@property EmbeddedAttribute embedded() { return EmbeddedAttribute(); }
 
 class PersistenceAdapter {
 	protected {

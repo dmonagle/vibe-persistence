@@ -119,8 +119,9 @@ class MongoAdapter {
 
 		Bson bsonModel;
 
+		ensureEmbeddedIds(model);
 		if(model.isNew) {
-			model.id = BsonObjectID.generate();
+			model.ensureId();
 			bsonModel = serializeToBson(model);
 			collection.insert(model);
 		} else {
@@ -131,6 +132,20 @@ class MongoAdapter {
 		_cache.addToCache(bsonModel._id.toString(), bsonModel);
 		
 		return true;
+	}
+
+	void ensureEmbeddedIds(M)(ref M model) {
+		import persistence.traits;
+
+		foreach (memberName; __traits(allMembers, M)) {
+			static if (isRWPlainField!(M, memberName) || isRWField!(M, memberName)) {
+				alias member = Tuple!(__traits(getMember, M, memberName));
+				alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
+				static if (embeddedUDA.found) {
+					__traits(getMember, model, memberName).ensureId();
+				}
+			}
+		}
 	}
 
 	void registerModel(M, string containerName)(bool cached = true) {
@@ -158,6 +173,12 @@ mixin template MongoModel(ModelType, string cName = "") {
 
 	@property SysTime createdAt() {
 		return id.timeStamp;
+	}
+
+	void ensureId() {
+		if (!id.valid) {
+			id = BsonObjectID.generate();
+		}
 	}
 
 	static void ensureIndex(int[string] fieldOrders, IndexFlags flags = cast(IndexFlags)0) {
