@@ -58,31 +58,50 @@ class MongoAdapter : PersistenceAdapter {
 		getCollection!M.ensureIndex(fieldOrders, flags);
 	}
 
-	ModelType findModel(ModelType, string key = "_id", IdType)(IdType id) {
-		import std.conv;
+	void find(ModelType)(Bson query, scope void delegate(Bson model) pred = null) {
+		import std.array;
+		import std.algorithm;
+		
+		auto collection = getCollection!ModelType;
+		query._type = modelMeta!ModelType.type;
+		
+		auto result = collection.find(query);
 
-		auto models = findModel!(ModelType, key, IdType)([id]);
-		if (models.length) return models[0];
-		static if(is(ModelType == class)) return null;
-		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ modelMeta!ModelType.containerName);
+		while (!result.empty) {
+			auto bsonModel = result.front;
+			if (pred) pred(bsonModel);
+			result.popFront;
+		}
 	}
 
-	void findModel(ModelType)(Json options, scope void delegate(ModelType model) pred = null) {
+	Bson[] find(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
+		import std.array;
+		import std.algorithm;
+		
+		Bson[] models;
+		auto query = serializeToBson([key: ["$in": ids]]);
+
+		this.find!ModelType(query, 
+			(model) {
+				// Add to cache here
+				models ~= model;
+			}
+		);
+
+		return models;
+	}
+	
+	void findModel(ModelType)(Bson query, scope void delegate(ModelType model) pred = null) {
 		import std.array;
 		import std.algorithm;
 
-		auto collection = getCollection!ModelType;
-		options._type = modelMeta!ModelType.type;
-		
-		auto result = collection.find(options);
-		
-		while (!result.empty) {
-			ModelType model;
-			auto bsonModel = result.front;
-			deserializeBson(model, bsonModel);
-			if (pred) pred(model);
-			result.popFront;
-		}
+		this.find!ModelType(query, 
+			(bsonModel) {
+				ModelType model;
+				deserializeBson(model, bsonModel);
+				if (pred) pred(model);
+			}
+		);
 	}
 
 	ModelType[] findModel(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
@@ -105,29 +124,21 @@ class MongoAdapter : PersistenceAdapter {
 		return models;
 	}
 	
+	ModelType findModel(ModelType, string key = "_id", IdType)(IdType id) {
+		import std.conv;
+		
+		auto models = findModel!(ModelType, key, IdType)([id]);
+		if (models.length) return models[0];
+		static if(is(ModelType == class)) return null;
+		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ modelMeta!ModelType.containerName);
+	}
+	
 	Bson find(ModelType, string key = "_id", IdType)(IdType id) {
 		import std.conv;
 		
 		auto models = find!(ModelType, key, IdType)([id]);
 		if (models.length) return models[0];
 		return Bson(null);
-	}
-	
-	Bson[] find(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
-		import std.array;
-		import std.algorithm;
-		
-		Bson[] models;
-		
-		auto collection = getCollection(modelMeta!ModelType.containerName);
-		auto result = collection.find([key: ["$in": ids]]);
-		
-		while (!result.empty) {
-			models ~= result.front;
-			result.popFront;
-		}
-
-		return models;
 	}
 	
 	bool save(M)(ref M model) {
@@ -159,7 +170,10 @@ class MongoAdapter : PersistenceAdapter {
 				alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
 				static if (embeddedUDA.found) {
 					auto embeddedModel = __traits(getMember, model, memberName);
-					if (embeddedModel) embeddedModel.ensureId();
+					if (embeddedModel) {
+						embeddedModel.ensureId();
+						ensureEmbeddedIds(embeddedModel);
+					}
 				}
 			}
 		}
