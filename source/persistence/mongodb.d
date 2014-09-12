@@ -163,6 +163,7 @@ class MongoAdapter : PersistenceAdapter {
 
 	void ensureEmbeddedIds(M)(ref M model) {
 		import persistence.traits;
+		import std.traits;
 
 		foreach (memberName; __traits(allMembers, M)) {
 			static if (isRWPlainField!(M, memberName) || isRWField!(M, memberName)) {
@@ -170,9 +171,13 @@ class MongoAdapter : PersistenceAdapter {
 				alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
 				static if (embeddedUDA.found) {
 					auto embeddedModel = __traits(getMember, model, memberName);
-					if (embeddedModel) {
-						embeddedModel.ensureId();
-						ensureEmbeddedIds(embeddedModel);
+					static if (isArray!(typeof(embeddedModel))) {
+						foreach(m; embeddedModel) ensureEmbeddedIds(m);
+					} else {
+						if (embeddedModel) {
+							embeddedModel.ensureId();
+							ensureEmbeddedIds(embeddedModel);
+						}
 					}
 				}
 			}
