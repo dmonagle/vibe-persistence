@@ -3,7 +3,7 @@
 public import persistence.base;
 
 import elasticsearch.client;
-import elasticsearch.parameters;
+public import elasticsearch.parameters;
 import elasticsearch.api.actions.base;
 import elasticsearch.api.actions.indices;
 
@@ -24,6 +24,10 @@ class EsAdapter : PersistenceAdapter {
 	this(string applicationName, string environment, string[] hosts ...) {
 		super(applicationName, environment);
 		_hosts = hosts;
+	}
+
+	void registerModel(M)(ModelMeta m) {
+		registerPersistenceModel!M(m);
 	}
 
 	@property Client client() {

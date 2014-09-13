@@ -5,7 +5,6 @@ public import persistence.exceptions;
 
 public import vibe.db.mongo.mongo;
 public import vibe.data.bson;
-public import vibe.core.log;
 public import std.datetime;
 public import persistence.base;
 
@@ -36,6 +35,11 @@ class MongoAdapter : PersistenceAdapter {
 		_url = url;
 	}
 
+	void registerModel(M)(ModelMeta m) {
+		registerPersistenceModel!M(m);
+		M.mongoAdapter = this;
+	}
+	
 	Bson dropCollection(string collection) {
 		auto command = Bson.emptyObject;
 		command.drop = collection;
@@ -187,7 +191,7 @@ class MongoAdapter : PersistenceAdapter {
 
 mixin template MongoModel(ModelType, string cName = "") {
 	private {
-		static PersistenceAdapter _persistenceAdapter;
+		static MongoAdapter _mongoAdapter;
 	}
 
 	@optional BsonObjectID _id;
@@ -200,23 +204,27 @@ mixin template MongoModel(ModelType, string cName = "") {
 	@optional @property void id(BsonObjectID id) { _id = id; } 
 	@ignore @property bool isNew() { return !id.valid; }
 
-	@ignore static @property ref PersistenceAdapter persistenceAdapter() { 
-		return _persistenceAdapter; 
-	}
-	@ignore static @property MongoAdapter mongoAdapter() { 
-		assert(_persistenceAdapter, "persistenceAdapter not set on " ~ ModelType.stringof);
-		return cast(MongoAdapter)persistenceAdapter; 
-	}
+	@ignore static @property MongoAdapter mongoAdapter() { return _mongoAdapter; }
+	@optional static @property void mongoAdapter(MongoAdapter ma) { _mongoAdapter = ma; }
 
 	@property SysTime createdAt() {
 		return id.timeStamp;
 	}
-
+	
 	void ensureId() {
 		if (!id.valid) {
 			id = BsonObjectID.generate();
 		}
 	}
+
+	static ModelType findModel(string key = "_id", IdType)(IdType id) {
+		return _mongoAdapter.findModel!(ModelType, key)(id);
+	}
+
+	void save()() {
+		_mongoAdapter.save(this);
+	}
+
 }
 
 version(unittest) {

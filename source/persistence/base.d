@@ -1,12 +1,12 @@
 ﻿module persistence.base;
 
 import vibe.data.serialization;
+public import vibe.core.log;
 
 interface ModelInterface {
 	@property string idString();
 	void setId(string id);
 	void ensureId();
-	@property ref PersistenceAdapter persistenceAdapter();
 
 	bool beforeCreate();
 	bool beforeUpdate();
@@ -16,12 +16,6 @@ interface ModelInterface {
 }
 
 class PersistenceModel : ModelInterface {
-	private {
-		static PersistenceAdapter _persistenceAdapter;
-	}
-	
-	@ignore static @property ref PersistenceAdapter persistenceAdapter() { return _persistenceAdapter; }
-
 	abstract @property string idString();
 	abstract void setId(string id);
 	abstract void ensureId();
@@ -67,11 +61,12 @@ class PersistenceAdapter {
 		return returnName;
 	}
 
-	void registerModel(M)(ModelMeta m) {
+	/// This should be called by the derived adapter from a registerModel template. It should not be called directly.
+	void registerPersistenceModel(M)(ModelMeta m) {
 		assert(m.containerName.length, "You must specify a container name for model: " ~ M.stringof);
+		logDebug("Model '%s' registered with adapter %s", M.stringof, typeof(this).stringof);
 		m.type = M.stringof;
 		_meta[M.stringof] = m;
-		M.persistenceAdapter = this;
 	}
 
 	@property bool modelRegistered(M)() {
