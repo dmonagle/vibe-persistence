@@ -221,8 +221,8 @@ mixin template MongoModel(ModelType, string cName = "") {
 		return _mongoAdapter.findModel!(ModelType, key)(id);
 	}
 
-	void save()() {
-		_mongoAdapter.save(this);
+	bool save()() {
+		return _mongoAdapter.save(this);
 	}
 
 }
@@ -282,3 +282,19 @@ version(unittest) {
 	}
 }
 
+import std.string;
+
+/*
+mixin template mBelongsTo(Type, string name, string recordAttribute = "_id", string mongoAttribute = "_id") {
+	mixin(format(`
+		private %$1s _%$2s;
+		
+		%$1s %$2s() {
+			if (!_%$2s && assignment.clientId.valid) {
+				_client = Contact.findModel(assignment.clientId);
+			}
+			return _client;
+		}
+	`, typeName, name, findAttribute));
+}
+*/
