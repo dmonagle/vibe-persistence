@@ -74,7 +74,7 @@ class PersistenceAdapter {
 	}
 
 	@property ModelMeta modelMeta(M)() {
-		assert(modelRegistered!M, "Model " ~ M.stringof ~ " is not registered with EsAdapter");
+		assert(modelRegistered!M, "Model " ~ M.stringof ~ " is not registered with Persistence Adapter");
 		return _meta[M.stringof];
 	}
 }
