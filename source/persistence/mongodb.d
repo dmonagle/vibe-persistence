@@ -62,7 +62,7 @@ class MongoAdapter : PersistenceAdapter {
 		getCollection!M.ensureIndex(fieldOrders, flags);
 	}
 
-	void find(ModelType)(Bson query, scope void delegate(Bson model) pred = null) {
+	void find(ModelType, Q)(Q query, scope void delegate(Bson model) pred = null) {
 		import std.array;
 		import std.algorithm;
 		
@@ -95,7 +95,7 @@ class MongoAdapter : PersistenceAdapter {
 		return models;
 	}
 	
-	void findModel(ModelType)(Bson query, scope void delegate(ModelType model) pred = null) {
+	void findModel(ModelType, Q)(Q query, scope void delegate(ModelType model) pred = null) {
 		import std.array;
 		import std.algorithm;
 
