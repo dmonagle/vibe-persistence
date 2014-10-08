@@ -62,22 +62,25 @@ class MongoAdapter : PersistenceAdapter {
 		getCollection!M.ensureIndex(fieldOrders, flags);
 	}
 
-	void find(ModelType, Q)(Q query, scope void delegate(Bson model) pred = null) {
+	/// Executes the given query within the container for the model and calls the delegate for each match
+	void find(ModelType, Q)(Q query, scope void delegate(Bson model) pred = null, uint limit = 0) {
 		import std.array;
 		import std.algorithm;
 		
 		auto collection = getCollection!ModelType;
 		query._type = modelMeta!ModelType.type;
 		
-		auto result = collection.find(query);
+		auto cursor = collection.find(query);
+		if (limit) cursor.limit(limit);
 
-		while (!result.empty) {
-			auto bsonModel = result.front;
+		while (!cursor.empty) {
+			auto bsonModel = cursor.front;
 			if (pred) pred(bsonModel);
-			result.popFront;
+			cursor.popFront;
 		}
 	}
 
+	/// Returns an array of Bson models matching the list of ids given
 	Bson[] find(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
 		import std.array;
 		import std.algorithm;
@@ -94,8 +97,9 @@ class MongoAdapter : PersistenceAdapter {
 
 		return models;
 	}
-	
-	void findModel(ModelType, Q)(Q query, scope void delegate(ModelType model) pred = null) {
+
+	/// Executes the the given query on the models container and calls the delegate with the deserialised model for each match.
+	void findModel(ModelType, Q)(Q query, scope void delegate(ModelType model) pred = null, uint limit = 0) {
 		import std.array;
 		import std.algorithm;
 
@@ -105,9 +109,10 @@ class MongoAdapter : PersistenceAdapter {
 				deserializeBson(model, bsonModel);
 				if (pred) pred(model);
 			}
-		);
+		, limit);
 	}
 
+	/// Returns an array of deserialized models matching the list of ids given
 	ModelType[] findModel(ModelType, string key = "_id", IdType)(IdType[] ids ...) {
 		import std.array;
 		import std.algorithm;
@@ -127,7 +132,8 @@ class MongoAdapter : PersistenceAdapter {
 		}
 		return models;
 	}
-	
+
+	/// Returns a single deserialized model matching the given id
 	ModelType findModel(ModelType, string key = "_id", IdType)(IdType id) {
 		import std.conv;
 		
@@ -137,6 +143,7 @@ class MongoAdapter : PersistenceAdapter {
 		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ modelMeta!ModelType.containerName);
 	}
 	
+	/// Returns a single Bson model matching the given id
 	Bson find(ModelType, string key = "_id", IdType)(IdType id) {
 		import std.conv;
 		
