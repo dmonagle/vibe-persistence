@@ -65,8 +65,8 @@ class PersistenceAdapter {
 	void registerPersistenceModel(M)(ModelMeta m) {
 		assert(m.containerName.length, "You must specify a container name for model: " ~ M.stringof);
 		logDebug("Model '%s' registered with adapter %s", M.stringof, typeof(this).stringof);
-		m.type = M.stringof;
-		_meta[M.stringof] = m;
+		if (!m.type.length) m.type = M.stringof;
+		_meta[m.type] = m;
 	}
 
 	@property bool modelRegistered(M)() {
