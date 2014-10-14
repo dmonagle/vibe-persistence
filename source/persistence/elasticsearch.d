@@ -88,7 +88,12 @@ class EsAdapter : PersistenceAdapter {
 
 		params["body"] = searchBody;
 		params["index"] = fullName(meta.containerName);
-		params["type"] = meta.type;
+		if ("type" !in params)
+			params["type"] = meta.type;
+		else {
+			// If the type is specified as blank, remove the type
+			if (!params["type"].length) params.remove("type");
+		}
 
 		auto response = client.search(params);
 
