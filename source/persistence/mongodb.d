@@ -172,6 +172,12 @@ class MongoAdapter : PersistenceAdapter {
 		return true;
 	}
 
+	bool remove(M)(ref M model) {
+		auto collection = getCollection(modelMeta!M.containerName);
+		collection.remove(["_id": model.id]);
+		return true;
+	}
+
 	void ensureEmbeddedIds(M)(ref M model) {
 		import persistence.traits;
 		import std.traits;
