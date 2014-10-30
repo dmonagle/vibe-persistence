@@ -295,19 +295,55 @@ version(unittest) {
 	}
 }
 
-import std.string;
+import std.typecons;
 
-/*
-mixin template mBelongsTo(Type, string name, string recordAttribute = "_id", string mongoAttribute = "_id") {
-	mixin(format(`
-		private %$1s _%$2s;
-		
-		%$1s %$2s() {
-			if (!_%$2s && assignment.clientId.valid) {
-				_client = Contact.findModel(assignment.clientId);
-			}
-			return _client;
-		}
-	`, typeName, name, findAttribute));
+bool mongoReferenceIsNull(T)(T reference) {
+	static if (is(T == class)) return reference ? true : false;
+	else static if (__traits(compiles, reference.isNull)) return reference.isNull;
+	else return false;
 }
-*/
+
+unittest {
+	struct TestStruct {
+	}
+	class TestClass {
+	}
+
+	TestClass testClass;
+
+	assert(mongoReferenceIsNull(testClass));
+	testClass = new TestClass;
+	assert(!mongoReferenceIsNull(testClass));
+
+	TestStruct testStruct;
+	assert(!mongoReferenceIsNull(testStruct));
+
+	Nullable!TestStruct testStructNullable;
+	assert(mongoReferenceIsNull(testStructNullable));
+}
+
+mixin template BelongsTo(T, string name, string attributeName, string key = "_id") {
+	import std.string;
+	
+	static if (!is(T == class)) {
+		static assert(is(T : Nullable), "Belongs to type, " ~ T.stringof ~ ", must be a class or Nullable!");
+	}
+	
+	// Create the private variable
+	mixin (format("private %s _%s;", T.stringof, name));
+	
+	static immutable string propertyGetterCode = format(`
+		@ignore @property %1$s %2$s() {
+			// Return the private variable if it is already set
+			if (_%2$s) return _%2$s;
+		
+			if (!mongoReferenceIsNull(%3$s))
+				_%2$s = %1$s.findModel!"%4$s"(%3$s);
+			
+			return _%2$s;
+		}
+	`, T.stringof, name, attributeName, key);
+	
+	mixin(propertyGetterCode);
+}
+
