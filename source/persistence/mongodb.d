@@ -66,11 +66,13 @@ class MongoAdapter : PersistenceAdapter {
 	void find(ModelType, Q)(Q query, scope void delegate(Bson model) pred = null, uint limit = 0) {
 		import std.array;
 		import std.algorithm;
-		
+
+		auto jsonQuery = query.serializeToJson;
+
 		auto collection = getCollection!ModelType;
-		query._type = modelMeta!ModelType.type;
+		jsonQuery._type = modelMeta!ModelType.type;
 		
-		auto cursor = collection.find(query);
+		auto cursor = collection.find(jsonQuery);
 		if (limit) cursor.limit(limit);
 
 		while (!cursor.empty) {
