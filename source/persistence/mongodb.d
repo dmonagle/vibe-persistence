@@ -67,12 +67,10 @@ class MongoAdapter : PersistenceAdapter {
 		import std.array;
 		import std.algorithm;
 
-		auto jsonQuery = query.serializeToJson;
-
 		auto collection = getCollection!ModelType;
-		jsonQuery._type = modelMeta!ModelType.type;
+		query._type = modelMeta!ModelType.type;
 		
-		auto cursor = collection.find(jsonQuery);
+		auto cursor = collection.find(query);
 		if (limit) cursor.limit(limit);
 
 		while (!cursor.empty) {
