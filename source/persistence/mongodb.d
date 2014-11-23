@@ -98,6 +98,15 @@ class MongoAdapter : PersistenceAdapter {
 		return models;
 	}
 
+	/// Returns a single Bson model matching the given id
+	Bson find(ModelType, string key = "_id", IdType)(IdType id) {
+		import std.conv;
+		
+		auto models = find!(ModelType, key, IdType)([id]);
+		if (models.length) return models[0];
+		return Bson(null);
+	}
+	
 	/// Executes the the given query on the models container and calls the delegate with the deserialised model for each match.
 	void findModel(ModelType, Q)(Q query, scope void delegate(ModelType model) pred = null, uint limit = 0) {
 		import std.array;
@@ -141,15 +150,6 @@ class MongoAdapter : PersistenceAdapter {
 		if (models.length) return models[0];
 		static if(is(ModelType == class)) return null;
 		else throw new NoModelForIdException("Could not find model with id " ~ to!string(id) ~ " in " ~ modelMeta!ModelType.containerName);
-	}
-	
-	/// Returns a single Bson model matching the given id
-	Bson find(ModelType, string key = "_id", IdType)(IdType id) {
-		import std.conv;
-		
-		auto models = find!(ModelType, key, IdType)([id]);
-		if (models.length) return models[0];
-		return Bson(null);
 	}
 	
 	bool save(M)(ref M model) {
@@ -290,17 +290,22 @@ version(unittest) {
 		
 		auto loadedUser = mongodb.findModel!PersistenceTestPerson(p.id);
 		assert(loadedUser.name == "David");
-		
-		assertThrown!NoModelForIdException(mongodb.find!PersistenceTestPerson("000000000000000000000000"));
+
+		assert(mongodb.find!PersistenceTestPerson("000000000000000000000000").type == Bson.Type.null_);
 	}
 }
 
 import std.typecons;
 
 bool mongoReferenceIsNull(T)(T reference) {
-	static if (is(T == class)) return reference ? true : false;
-	else static if (__traits(compiles, reference.isNull)) return reference.isNull;
-	else return false;
+	import std.stdio;
+
+	static if (is(T == class)) 
+		return reference ? false : true;
+	else static if (__traits(compiles, reference.isNull)) 
+		return reference.isNull;
+	else 
+		return false;
 }
 
 unittest {

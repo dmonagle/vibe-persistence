@@ -68,8 +68,7 @@ unittest {
 	import vibe.data.json;
 	
 	auto testData1 = serializeToJson(["name": "Bruce"]);
-	
-	
+		
 	CacheContainer!Json ca;
 	ca.maxAge = 1;
 	ca.maxSize = 100;
@@ -80,13 +79,13 @@ unittest {
 	
 	auto result = ca.retrieveFromCache("123");
 	assert(result.name.get!string == "Bruce");
-	
+
 	auto noResult = ca.retrieveFromCache("1234");
-	assert(noResult.isNull);
-	
+	assert(noResult.type == Json.Type.null_);
+
 	Thread.sleep( dur!("seconds")(1) );
 	auto result2 = ca.retrieveFromCache("123");
-	assert(result2.isNull);
+	assert(noResult.type == Json.Type.null_);
 	assert(ca.length == 0);
 }
 
