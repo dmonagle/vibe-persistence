@@ -2,6 +2,7 @@
 
 import persistence.mongodb;
 import std.typecons;
+public import std.digest.sha;
 
 /* This set of structs could certainly use some better methods of updating other than calling save
  * It could probably get to the point of not requiring an explicit save but to use updates 
@@ -153,7 +154,7 @@ version (unittest) {
 		int age;
 		
 		mixin MongoModel!UserModel;
-		mixin VibedModelSync;
+		mixin ModelSync;
 	}
 	
 	class UserWithDate {
@@ -169,7 +170,7 @@ version (unittest) {
 			return json;
 		}
 		
-		mixin VibedModelSync;
+		mixin ModelSync;
 	}
 	
 }
@@ -227,7 +228,7 @@ unittest {
 	
 }
 
-mixin template VibedModelSync(string hashFunction = "sha1Of") {
+mixin template ModelSync(string hashFunction = "sha1Of") {
 	public {
 		@ignore @property const SyncHash syncHash() {
 			static if (__traits(compiles, this.stringForSyncHash)) {
