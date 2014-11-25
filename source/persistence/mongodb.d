@@ -182,8 +182,13 @@ class MongoAdapter : PersistenceAdapter {
 		import persistence.traits;
 		import std.traits;
 
+		import colorize;
+
 		foreach (memberName; __traits(allMembers, M)) {
-			static if (isRWPlainField!(M, memberName) || isRWField!(M, memberName)) {
+
+			//static if (isRWPlainField!(M, memberName) || isRWField!(M, memberName)) {
+			static if (__traits(getProtection, __traits(getMember, model, memberName)) == "public") {
+
 				alias member = Tuple!(__traits(getMember, M, memberName));
 				alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
 				static if (embeddedUDA.found) {
