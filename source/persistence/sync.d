@@ -154,7 +154,6 @@ version (unittest) {
 		int age;
 		
 		mixin MongoModel!UserModel;
-		mixin ModelSync;
 	}
 	
 	class UserWithDate {
@@ -170,7 +169,6 @@ version (unittest) {
 			return json;
 		}
 		
-		mixin ModelSync;
 	}
 	
 }
@@ -228,25 +226,21 @@ unittest {
 	
 }
 
-mixin template ModelSync(string hashFunction = "sha1Of") {
-	public {
-		@ignore @property const SyncHash syncHash()() {
-			static if (__traits(compiles, this.stringForSyncHash)) {
-				string stringForHash = this.stringForSyncHash;
-			}
-			else {
-				static if (__traits(compiles, this.jsonForSync)) {
-					Json jsonForHash = jsonForSync;
-				}
-				else {
-					Json jsonForHash = this.serializeToJson;
-				}
-				string stringForHash = jsonForHash.toString;
-			}
-			
-			return mixin(hashFunction ~ "(stringForHash)").dup;
-		}
+SyncHash syncHash(M, string hashFunction = "sha1Of")(const M model) {
+	static if (__traits(compiles, model.stringForSyncHash)) {
+		string stringForHash = model.stringForSyncHash;
 	}
+	else {
+		static if (__traits(compiles, model.jsonForSync)) {
+			Json jsonForHash = model.jsonForSync;
+		}
+		else {
+			Json jsonForHash = model.serializeToJson;
+		}
+		string stringForHash = jsonForHash.toString;
+	}
+	
+	return mixin(hashFunction ~ "(stringForHash)").dup;
 }
 
 unittest {

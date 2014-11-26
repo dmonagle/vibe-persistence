@@ -186,7 +186,6 @@ class MongoAdapter : PersistenceAdapter {
 			//static if (isRWPlainField!(M, memberName) || isRWField!(M, memberName)) {
 			static if (is(typeof(__traits(getMember, model, memberName)))) {
 				static if (__traits(getProtection, __traits(getMember, model, memberName)) == "public") {
-
 					alias member = Tuple!(__traits(getMember, M, memberName));
 					alias embeddedUDA = findFirstUDA!(EmbeddedAttribute, member);
 					static if (embeddedUDA.found) {
