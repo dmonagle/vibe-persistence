@@ -230,7 +230,7 @@ unittest {
 
 mixin template ModelSync(string hashFunction = "sha1Of") {
 	public {
-		@ignore @property const SyncHash syncHash() {
+		@ignore @property const SyncHash syncHash()() {
 			static if (__traits(compiles, this.stringForSyncHash)) {
 				string stringForHash = this.stringForSyncHash;
 			}
