@@ -161,9 +161,11 @@ class MongoAdapter : PersistenceAdapter {
 		if(model.isNew) {
 			model.ensureId();
 			bsonModel = serializeToBson(model);
+			logDebugV("Inserting into collection %s: %s", modelMeta!M.containerName, bsonModel.toString);
 			collection.insert(model);
 		} else {
 			bsonModel = serializeToBson(model);
+			logDebugV("Upserting %s into collection %s: %s", model.id.toString, modelMeta!M.containerName, bsonModel.toString);
 			collection.update(["_id": model.id], bsonModel, UpdateFlags.Upsert);
 		}
 		
