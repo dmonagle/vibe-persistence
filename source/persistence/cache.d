@@ -3,8 +3,21 @@
 import std.datetime;
 
 struct CachedData(T) {
-	SysTime timestamp;
 	T data;
+	SysTime timestamp;
+
+	@property Duration age() const {
+		return Clock.currTime() - timestamp;
+	}
+
+	this(T data, SysTime timestamp) {
+		this.data = data;
+		this.timestamp = timestamp;
+	}
+
+	this(T data) {
+		this(data, Clock.currTime());
+	}
 }
 
 struct CacheContainer(T) {
@@ -14,14 +27,13 @@ struct CacheContainer(T) {
 	CachedData!T[string] _cacheMap;
 
 	void addToCache(string id, T data) {
-		_cacheMap[id] = CachedData!T(Clock.currTime(), data);
+		_cacheMap[id] = CachedData!T(data);
 	}
 
 	T retrieveFromCache(string id) {
 		if (id in _cacheMap) {
 			auto cachedModel = _cacheMap[id];
-			auto age = Clock.currTime() - cachedModel.timestamp;
-			if (age > dur!"seconds"(maxAge)) {
+			if (cachedModel.age > dur!"seconds"(maxAge)) {
 				_cacheMap.remove(id);
 				return T(null);
 			}
