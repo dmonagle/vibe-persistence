@@ -216,9 +216,9 @@ mixin template MongoModel(ModelType, string cName = "") {
 
 	// Dummy setter so that _type will be serialized
 	@optional @property void _type(string value) {}
-	@property const string _type() { return ModelType.stringof; }
+	@property string _type() const { return ModelType.stringof; }
 
-	@ignore @property BsonObjectID id() { return _id; } 
+	@ignore @property BsonObjectID id() const { return _id; } 
 	@optional @property void id(BsonObjectID id) { _id = id; } 
 	@ignore @property bool isNew() { return !id.valid; }
 
