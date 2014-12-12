@@ -46,10 +46,14 @@ struct SyncMeta {
 	ref SyncServiceMeta opIndex(string serviceName) {
 		return services[serviceName];
 	}
+
+	bool serviceExists(string serviceName) const {
+		return cast(bool)(serviceName in services);
+	}
 	
 	/// Returns the specified serviceName, creating it if necessary
 	ref SyncServiceMeta ensureService(string serviceName) {
-		if (serviceName !in services) {
+		if (!serviceExists(serviceName)) {
 			auto serviceMeta = SyncServiceMeta();
 			services[serviceName] = serviceMeta;
 		}
@@ -64,7 +68,9 @@ struct SyncMeta {
 	}
 	
 	/// Returns true if the specified service does not match the given syncHash
+	/// Returns false if the service doesn't exist or is up to date
 	bool serviceNeedsSync(string serviceName, SyncHash syncHash) {
+		if (!serviceExists(serviceName)) return false;
 		auto service = this[serviceName];
 		return service.needsSync(syncHash);
 	}
@@ -130,6 +136,7 @@ struct ModelSyncMeta(M) {
 	}
 	
 	bool serviceNeedsSync(string serviceName) {
+		if (!_syncMeta.serviceExists(serviceName)) return false;
 		auto service = this[serviceName];
 		return service.needsSync(_model.syncHash);
 	}
@@ -197,7 +204,9 @@ unittest {
 	// We should now be able to get the ModelSyncMeta with a call to modelSync with the model
 	// also we make sure the services we require exist
 	auto sync = modelSync(u, "webService1", "webService2");
-	
+
+	assert(!sync.serviceNeedsSync("undefinedService"));
+
 	// Both of the new services need syncing
 	assert(sync.serviceNeedsSync("webService1"));
 	assert(sync.serviceNeedsSync("webService2"));
