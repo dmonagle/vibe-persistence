@@ -109,7 +109,11 @@ struct ModelSyncMeta(M) {
 		_syncMeta._syncHash = _model.syncHash;
 		return _syncMeta.save();
 	}
-	
+
+	@property bool changed() const {
+		return cast(bool)(_syncMeta._syncHash != _model.syncHash);
+	}
+
 	@property bool synced() {
 		_syncMeta._syncHash = _model.syncHash;
 		return _syncMeta.synced;
