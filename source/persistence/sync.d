@@ -34,9 +34,8 @@ struct SyncMeta {
 	@property bool synced() {
 		foreach(serviceName, serviceMeta; services) {
 			if (serviceMeta.needsSync(_syncHash)) return false;
-			return true;
 		}
-		return false;
+		return true;
 	}
 	
 	/// This only exists so the serializer deals with the synced property
@@ -212,6 +211,7 @@ unittest {
 	assert(!sync.serviceNeedsSync("undefinedService"));
 
 	// Both of the new services need syncing
+	assert(sync.synced);
 	assert(sync.serviceNeedsSync("webService1"));
 	assert(sync.serviceNeedsSync("webService2"));
 	
